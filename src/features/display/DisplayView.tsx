@@ -1,21 +1,16 @@
 import {
   CheckIcon,
-  Columns2Icon,
   LayoutTemplateIcon,
   HistoryIcon,
   ListIcon,
   Loader2Icon,
   MaximizeIcon,
   MinimizeIcon,
-  MoonIcon,
   PinIcon,
   PinOffIcon,
-  RectangleVerticalIcon,
   SettingsIcon,
   ShuffleIcon,
   SlidersHorizontalIcon,
-  SmartphoneIcon,
-  TypeIcon,
   UndoIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -32,17 +27,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/overlays";
 import { Switch } from "@/components/ui/primitives";
 import { cn, seenAt } from "@/lib/utils";
-import { useApp, useTranslation, type DisplayLayout } from "@/state/store";
+import { useApp, useTranslation } from "@/state/store";
+import { LAYOUTS } from "./layouts";
 import { useFitText } from "./useFitText";
 import { prefetchFirst, SALT, useRandomVerse, type Picked } from "./useRandomVerse";
 
-export const LAYOUTS: { value: DisplayLayout; label: string; description: string; icon: typeof CheckIcon }[] = [
-  { value: "auto", label: "Auto", description: "Side by side when the screen is turned sideways", icon: SmartphoneIcon },
-  { value: "side", label: "Landscape", description: "The clock beside the verse", icon: Columns2Icon },
-  { value: "stacked", label: "Portrait", description: "The clock above the verse", icon: RectangleVerticalIcon },
-  { value: "verse", label: "Verse", description: "The verse as large as it fits", icon: TypeIcon },
-  { value: "night", label: "Night", description: "Dim and warm, for a dark room", icon: MoonIcon },
-];
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -445,10 +434,13 @@ export function DisplayView({
     if (picked.status !== "verse") return null;
     const first = picked.items[0]!.position + 1;
     const last = picked.items.at(-1)!.position + 1;
-    if (picked.items.length === 1) return `Verse ${first} of ${picked.of}`;
-    if (picked.items.length >= picked.of) return `All ${picked.of} verses`;
+    // On a phone, "1/5", to leave room for the buttons
+    if (picked.items.length === 1) return { long: `Verse ${first} of ${picked.of}`, short: `${first}/${picked.of}` };
+    if (picked.items.length >= picked.of) return { long: `All ${picked.of} verses`, short: `All ${picked.of}` };
     // Past the last, they start again from the first
-    return last > first ? `Verses ${first}–${last} of ${picked.of}` : `${picked.items.length} of ${picked.of} verses`;
+    return last > first
+      ? { long: `Verses ${first}–${last} of ${picked.of}`, short: `${first}–${last}/${picked.of}` }
+      : { long: `${picked.items.length} of ${picked.of} verses`, short: `${picked.items.length}/${picked.of}` };
   })();
   const bar = cn("transition-opacity duration-500", idle.active ? "opacity-100" : "pointer-events-none opacity-0");
   const barButton = night ? "text-[#c98a5a] hover:bg-white/5 hover:text-[#e0a070]" : "";
@@ -475,8 +467,8 @@ export function DisplayView({
       )}
 
       <div className={cn("absolute inset-x-0 top-0 flex items-center gap-1 px-[max(env(safe-area-inset-left),0.75rem)] pt-[max(env(safe-area-inset-top),0.75rem)] pr-[max(env(safe-area-inset-right),0.75rem)]", bar)}>
-        <Button variant="ghost" size="sm" className={barButton} onClick={onClose} title="Every verse at this time (Esc)">
-          <ListIcon /> All
+        <Button variant="ghost" size="sm" className={cn(barButton, "max-sm:px-2")} onClick={onClose} title="Every verse at this time (Esc)" aria-label="Every verse at this time">
+          <ListIcon /> <span className="hidden sm:inline">All</span>
         </Button>
         <div className={cn("flex-1 truncate text-center text-xs", night ? "text-[#c98a5a]/60" : "text-muted-foreground")}>
           {viewing ? (
@@ -485,8 +477,13 @@ export function DisplayView({
             </button>
           ) : (
             <>
-              {position && <span className="tabular-nums">{position}</span>}
-              {position && !live && <span> · {formatTime(time, format)}</span>}
+              {position && (
+                <span className="tabular-nums">
+                  <span className="sm:hidden">{position.short}</span>
+                  <span className="hidden sm:inline">{position.long}</span>
+                </span>
+              )}
+              {position && !live && <span className="hidden sm:inline"> · {formatTime(time, format)}</span>}
             </>
           )}
         </div>

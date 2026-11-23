@@ -4,7 +4,8 @@ import { Switch } from "@/components/ui/primitives";
 import { Segmented } from "@/components/ui/segmented";
 import { Stepper } from "@/components/ui/stepper";
 import { PER_MINUTE, slotLength, type HourFormat } from "@/clock/times";
-import { useApp, type Theme } from "@/state/store";
+import { LAYOUTS } from "@/features/display/layouts";
+import { useApp, type DisplayLayout, type Theme } from "@/state/store";
 
 function Row({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) {
   return (
@@ -42,6 +43,33 @@ export function SettingsDialog() {
         <Row title="Other readings" description="Also split the digits other ways: 5:48 as 54:8, 12:01 as 120:1">
           <Switch checked={settings.otherReadings} onCheckedChange={(otherReadings) => update({ otherReadings })} />
         </Row>
+        <div className="space-y-2 py-3">
+          <div className="space-y-0.5">
+            <div className="text-sm font-medium">Layout</div>
+            <div className="text-xs text-muted-foreground">
+              {(() => {
+                const l = LAYOUTS.find((l) => l.value === settings.displayLayout) ?? LAYOUTS[0]!;
+                return `${l.label}: ${l.description.charAt(0).toLowerCase()}${l.description.slice(1)}`;
+              })()}
+            </div>
+          </div>
+          <Segmented<DisplayLayout>
+            size="sm"
+            className="w-full"
+            value={settings.displayLayout}
+            onChange={(displayLayout) => update({ displayLayout })}
+            options={LAYOUTS.map((l) => ({
+              value: l.value,
+              title: l.label,
+              label: (
+                <>
+                  <l.icon aria-hidden />
+                  <span className="sr-only sm:not-sr-only">{l.label}</span>
+                </>
+              ),
+            }))}
+          />
+        </div>
         <Row title="Verses at once" description="How many verses the one-verse display shows each minute">
           <Stepper label="Verses at once" value={settings.displayCount} min={1} max={MAX_AT_ONCE} onChange={(displayCount) => update({ displayCount })} />
         </Row>

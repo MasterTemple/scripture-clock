@@ -98,6 +98,50 @@ export function versesForTime(t: ClockTime, format: HourFormat, others = true): 
     .filter((g) => g.verses.length > 0);
 }
 
+/**
+ * When the clock comes to a verse by itself, as it's shown ("3:16", "15:16" on a 24-hour clock);
+ * empty when it never does, and only a pin can show it
+ */
+export function timesFor(v: VerseRef, format: HourFormat, others = true): string[] {
+  const index = dayIndex(format, others);
+  const exact = index.get(`${v.chapter}:${v.verse}`) ?? [];
+  const alone = v.chapter === 1 && isSingleChapter(v.bookId) ? (index.get(`${v.verse}`) ?? []) : [];
+  const out = [...new Set([...exact, ...alone])];
+  return format === "12h" ? out.sort((a, b) => clockOrder(a) - clockOrder(b)) : out.sort((a, b) => order24(a) - order24(b));
+}
+
+const indexes = new Map<string, Map<string, string[]>>();
+
+/** Every reading of a day's times, by how it's written ("5:48", or "9" for the hour alone) */
+function dayIndex(format: HourFormat, others: boolean): Map<string, string[]> {
+  const key = `${format}|${others}`;
+  let index = indexes.get(key);
+  if (index) return index;
+  index = new Map();
+  for (let hour = 0; hour < (format === "24h" ? 24 : 12); hour++) {
+    for (let minute = 0; minute < 60; minute++) {
+      const t = { hour, minute };
+      for (const r of readings(t, format, others)) {
+        const label = readingLabel(r);
+        index.set(label, [...(index.get(label) ?? []), formatTime(t, format)]);
+      }
+    }
+  }
+  indexes.set(key, index);
+  return index;
+}
+
+const order24 = (time: string) => {
+  const [h, m] = time.split(":").map(Number) as [number, number];
+  return h * 60 + m;
+};
+
+/** 12:xx first, as a 12-hour clock goes round */
+const clockOrder = (time: string) => {
+  const [h, m] = time.split(":").map(Number) as [number, number];
+  return (h % 12) * 60 + m;
+};
+
 export const addMinutes = (t: ClockTime, n: number): ClockTime => {
   const total = (((t.hour * 60 + t.minute + n) % 1440) + 1440) % 1440;
   return { hour: Math.floor(total / 60), minute: total % 60 };

@@ -1,9 +1,10 @@
 import { BookMarkedIcon, ChevronRightIcon, HistoryIcon, PinIcon, PlusIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { bookById, findPassages } from "@/bible/topos";
-import { BOOK_GROUPS, PRIORITY_LABELS, pinTime, priorityOf, type Priority } from "@/clock/choose";
-import { parseTime } from "@/clock/times";
+import { bookById, findPassages, formatRef, passageVerses } from "@/bible/topos";
+import type { VerseRef } from "@/bible/types";
+import { BOOK_GROUPS, PRIORITY_LABELS, pinTime, priorityOf, type Priorities, type Priority } from "@/clock/choose";
+import { parseTime, timesFor, type HourFormat } from "@/clock/times";
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/overlays";
 import { HistoryList } from "./HistoryList";
@@ -42,6 +43,40 @@ function timeOf(verses: { chapter: number; verse: number }[]) {
   return { hour: first.chapter, minute: first.verse };
 }
 
+/** Whether the clock comes to these verses by itself, and when; a book set to Never it doesn't */
+function reach(verses: VerseRef[], format: HourFormat, others: boolean, priorities: Priorities) {
+  return verses.map((v) => ({ verse: v, times: priorityOf(priorities, v.bookId) === 0 ? [] : timesFor(v, format, others), never: priorityOf(priorities, v.bookId) === 0 }));
+}
+
+/** "Comes up at 3:16", or which of the verses the clock never comes to by itself */
+function ReachNote({ verses, reference }: { verses: VerseRef[]; reference: string }) {
+  const format = useApp((s) => s.settings.hourFormat);
+  const others = useApp((s) => s.settings.otherReadings);
+  const priorities = useApp((s) => s.priorities);
+  const found = useMemo(() => reach(verses, format, others, priorities), [verses, format, others, priorities]);
+  const unreached = found.filter((f) => !f.times.length);
+  const neverBook = found.find((f) => f.never);
+  const why = neverBook ? `, with ${bookById(neverBook.verse.bookId).name} set to Never` : "";
+  if (found.length === 1) {
+    const [only] = found;
+    if (only!.times.length)
+      return <span className="text-muted-foreground">{reference} comes up by itself at {only!.times.join(", ")}.</span>;
+    return <span className="text-amber-700 dark:text-amber-400">{reference} never comes up by itself{why}: only a pin shows it.</span>;
+  }
+  if (!unreached.length) return <span className="text-muted-foreground">Every verse of {reference} comes up by itself at some time.</span>;
+  const names = unreached.slice(0, 4).map((f) => formatRef(f.verse)).join(", ");
+  const more = unreached.length > 4 ? ` and ${unreached.length - 4} more` : "";
+  const warn = "text-amber-700 dark:text-amber-400";
+  if (unreached.length === found.length)
+    return <span className={warn}>No verse of {reference} comes up by itself{why}: only a pin shows them.</span>;
+  return (
+    <span className={warn}>
+      {unreached.length} of {found.length} verses of {reference} never come up by themselves{why}: {names}
+      {more}. Only a pin shows {unreached.length === 1 ? "it" : "them"}.
+    </span>
+  );
+}
+
 function Pins() {
   const pins = useApp((s) => s.pins);
   const addPins = useApp((s) => s.addPins);
@@ -61,6 +96,14 @@ function Pins() {
     toast.success(`Pinned to ${pinTime({ ...time, id: "", reference: "" })}`, { description: passages.map((p) => p.reference).join(", ") });
     setReference("");
     setTimeText("");
+  };
+
+  const others = useApp((s) => s.settings.otherReadings);
+  const priorities = useApp((s) => s.priorities);
+  /** A pin whose verses the clock never comes to by itself */
+  const onlyPinned = (reference: string) => {
+    const verses = passageVerses(reference);
+    return !!verses?.length && reach(verses, format, others, priorities).every((f) => !f.times.length);
   };
 
   const byTime = useMemo(() => {
@@ -94,6 +137,15 @@ function Pins() {
             />
           </div>
         </div>
+        {passages.length > 0 && (
+          <ul className="space-y-1 text-xs leading-relaxed">
+            {passages.map((p) => (
+              <li key={p.reference}>
+                <ReachNote verses={p.verses} reference={p.reference} />
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="flex items-center justify-between gap-3">
           <p className="min-w-0 text-xs text-muted-foreground">
             {reference.trim() && !passages.length
@@ -116,7 +168,10 @@ function Pins() {
               <ul className="min-w-0 flex-1 space-y-0.5">
                 {group.map((p) => (
                   <li key={p.id} className="group flex items-center justify-between gap-2">
-                    <span className="truncate text-sm">{p.reference}</span>
+                    <span className="min-w-0 truncate text-sm">
+                      {p.reference}
+                      {onlyPinned(p.reference) && <span className="ml-2 text-xs text-muted-foreground">only when pinned</span>}
+                    </span>
                     <Button size="icon-sm" variant="ghost" className="opacity-60 group-hover:opacity-100" aria-label={`Unpin ${p.reference}`} onClick={() => removePin(p.id)}>
                       <Trash2Icon />
                     </Button>

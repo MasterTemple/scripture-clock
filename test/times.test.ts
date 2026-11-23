@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { formatRef, loadTopos } from "@/bible/topos";
-import { addMinutes, nextWithVerses, parseTime, PER_MINUTE, readings, slotOf, splitMatch, timeLabels, versesForTime } from "@/clock/times";
+import { addMinutes, nextWithVerses, parseTime, PER_MINUTE, readings, slotOf, splitMatch, timeLabels, timesFor, versesForTime } from "@/clock/times";
 
 beforeAll(loadTopos);
 
@@ -113,5 +113,23 @@ describe("matching the time", () => {
   it("leaves a verse that doesn't match alone", () => {
     expect(splitMatch("John 3:16", labels(5, 48))).toBeNull();
     expect(splitMatch("Jude 9", labels(9, 1))).toBeNull();
+  });
+});
+
+describe("when the clock comes to a verse", () => {
+  it("finds every time a verse comes up", () => {
+    expect(timesFor({ bookId: 43, chapter: 3, verse: 16 }, "12h")).toEqual(["3:16"]);
+    expect(timesFor({ bookId: 43, chapter: 3, verse: 16 }, "24h")).toEqual(["3:16"]);
+    expect(timesFor({ bookId: 23, chapter: 54, verse: 8 }, "12h")).toEqual(["5:48"]);
+    expect(timesFor({ bookId: 65, chapter: 1, verse: 9 }, "12h")).toEqual(["1:09", "9:00"]);
+    expect(timesFor({ bookId: 1, chapter: 1, verse: 9 }, "12h")).toEqual(["1:09"]);
+  });
+
+  it("has none for a verse the clock never comes to", () => {
+    expect(timesFor({ bookId: 19, chapter: 119, verse: 105 }, "12h")).toEqual([]);
+    expect(timesFor({ bookId: 23, chapter: 54, verse: 8 }, "12h", false)).toEqual([]);
+    expect(timesFor({ bookId: 19, chapter: 99, verse: 1 }, "12h")).toEqual([]);
+    expect(timesFor({ bookId: 19, chapter: 23, verse: 1 }, "12h")).toEqual(["2:31"]);
+    expect(timesFor({ bookId: 19, chapter: 23, verse: 1 }, "24h")).toEqual(["2:31", "23:01"]);
   });
 });

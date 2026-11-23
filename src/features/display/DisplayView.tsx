@@ -58,7 +58,7 @@ function Clock({
 }: {
   time: ClockTime;
   seconds?: number | null;
-  /** The seconds small, above AM/PM, where the clock is beside the verse and has no room across */
+  /** The seconds small (":17") at the top, over AM/PM, where the clock is beside the verse and has no room across */
   smallSeconds?: boolean;
   format: HourFormat;
   style?: CSSProperties;
@@ -78,9 +78,9 @@ function Clock({
         </>
       )}
       {(format === "12h" || (smallSeconds && seconds !== null)) && (
-        <span className="relative ml-[0.12em] font-sans text-[0.2em] font-medium tracking-normal opacity-60">
-          {/* Above AM/PM, or where it would be on a 24-hour clock */}
-          {smallSeconds && seconds !== null && <span className="absolute bottom-full left-0 mb-[0.15em] tabular-nums">{pad(seconds)}</span>}
+        <span className="relative ml-[0.12em] font-sans text-[0.2em] leading-none font-medium tracking-normal opacity-60">
+          {/* Level with the top of the hour and minute, over AM/PM (or where it would be) */}
+          {smallSeconds && seconds !== null && <span className="absolute -top-[2.7em] left-0 tabular-nums">:{pad(seconds)}</span>}
           {format === "12h" ? (time.hour < 12 ? "AM" : "PM") : <span className="invisible">00</span>}
         </span>
       )}

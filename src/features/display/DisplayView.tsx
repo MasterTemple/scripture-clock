@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { candidatesFor, nextPinnedTime, pinnedTimeFor, pinsAt } from "@/clock/choose";
 import { addMinutes, formatTime, PER_MINUTE, shownHour, slotLength, slotOf, timeLabels, type ClockTime, type HourFormat } from "@/clock/times";
+import { Colon } from "@/components/Colon";
 import { Reference } from "@/components/Reference";
 import { CustomizeDialog, type CustomizeTab } from "@/features/customize/CustomizeDialog";
 import { useHistory } from "@/state/history";
@@ -65,7 +66,7 @@ function Clock({
   className?: string;
   colon?: string;
 }) {
-  const separator = <span className={cn("mx-[0.03em] animate-[blink_2s_ease-in-out_infinite]", colon)}>:</span>;
+  const separator = <Colon className={cn("mx-[0.03em]", colon)} />;
   return (
     <div className={cn("flex items-baseline font-serif leading-none font-semibold tracking-tight tabular-nums", className)} style={style}>
       <span>{shownHour(time, format)}</span>
@@ -100,6 +101,8 @@ function Verses({
   className,
   textClassName,
   referenceClassName,
+  matchClassName,
+  colonClassName,
   empty,
 }: {
   picked: Picked;
@@ -114,6 +117,10 @@ function Verses({
   className?: string;
   textClassName?: string;
   referenceClassName?: string;
+  /** The chapter and verse matching the time, in the clock's color */
+  matchClassName?: string;
+  /** Its colon, blinking with the clock's */
+  colonClassName?: string;
 }) {
   const content = picked.status === "verse" ? picked.items.map((it) => it.candidate.id + it.text).join("|") : picked.status;
   const { box, text } = useFitText<HTMLDivElement, HTMLDivElement>(content, { min: 10, max });
@@ -132,7 +139,7 @@ function Verses({
           style={{ fontSize: "clamp(0.72rem, 0.4em, 1.25rem)" }}
         >
           {it.candidate.pinned && <PinIcon className="mr-1.5 inline size-[0.9em] -rotate-12 align-[-0.1em]" aria-label="Pinned" />}
-          <Reference reference={it.reference} labels={labels} /> <span className="opacity-60">· {abbreviation}</span>
+          <Reference reference={it.reference} labels={labels} className={cn("bg-transparent p-0 text-foreground", matchClassName)} colon={cn("text-primary", colonClassName)} /> <span className="opacity-60">· {abbreviation}</span>
         </div>
       </div>
     ));
@@ -404,8 +411,9 @@ export function DisplayView({
   // shows (or hides) the controls
   const down = useRef<{ x: number; y: number } | null>(null);
   const onPointerDown = (e: React.PointerEvent) => {
-    // Taps in the menus and dialogs (drawn elsewhere, but still inside this in React) aren't on the verse
-    if ((e.target as HTMLElement).closest("button,select,input,a,[role=menu],[role=dialog]")) return;
+    // Taps in the menus and dialogs, and on a dialog's background (drawn elsewhere, but still inside
+    // this in React), aren't on the verse
+    if ((e.target as HTMLElement).closest("button,select,input,a,[role=menu],[role=dialog],[data-slot=overlay]")) return;
     down.current = { x: e.clientX, y: e.clientY };
   };
   const onPointerUp = (e: React.PointerEvent) => {
@@ -443,6 +451,8 @@ export function DisplayView({
           className="h-full"
           textClassName={night ? "text-[#c98a5a]/75" : undefined}
           referenceClassName={night ? "text-[#c98a5a]/50" : undefined}
+          matchClassName={night ? nightText : undefined}
+          colonClassName={night ? "text-[#c98a5a]/60" : undefined}
         />
       </div>
     );
@@ -457,6 +467,8 @@ export function DisplayView({
           className="w-full max-w-3xl flex-1"
           textClassName={night ? "text-[#c98a5a]/75" : undefined}
           referenceClassName={night ? "text-[#c98a5a]/50" : undefined}
+          matchClassName={night ? nightText : undefined}
+          colonClassName={night ? "text-[#c98a5a]/60" : undefined}
         />
       </div>
     );

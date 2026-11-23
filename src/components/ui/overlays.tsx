@@ -7,8 +7,19 @@ export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 
+/** The dimmed background. A tap on it closes the dialog through its own click handler: Radix
+ * otherwise waits for a click on the document after a touch, and iOS Safari never sends one for
+ * a tap on an element (like this one, portaled outside the React root) with no click handler */
 function Overlay() {
-  return <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-[fade-up_0.2s_ease-out]" />;
+  return (
+    <DialogPrimitive.Close asChild>
+      <DialogPrimitive.Overlay
+        data-slot="overlay"
+        tabIndex={-1}
+        className="fixed inset-0 z-50 cursor-default bg-black/40 data-[state=open]:animate-[fade-up_0.2s_ease-out]"
+      />
+    </DialogPrimitive.Close>
+  );
 }
 
 export function DialogContent({
@@ -90,7 +101,12 @@ export function DropdownMenuContent({ className, align = "end", ...props }: Comp
       <Menu.Content
         align={align}
         sideOffset={6}
-        className={cn("z-50 min-w-48 overflow-hidden rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg animate-fade-up", className)}
+        collisionPadding={8}
+        // Scrolls when it's taller than the room left on screen (a phone held sideways)
+        className={cn(
+          "z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-48 overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg animate-fade-up scrollbar-thin",
+          className,
+        )}
         {...props}
       />
     </Menu.Portal>
@@ -149,7 +165,11 @@ export function PopoverContent({ className, align = "start", ...props }: Compone
       <PopoverPrimitive.Content
         align={align}
         sideOffset={6}
-        className={cn("z-50 rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg outline-none animate-fade-up", className)}
+        collisionPadding={8}
+        className={cn(
+          "z-50 max-h-(--radix-popover-content-available-height) overflow-y-auto overscroll-contain rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg outline-none animate-fade-up scrollbar-thin",
+          className,
+        )}
         {...props}
       />
     </PopoverPrimitive.Portal>

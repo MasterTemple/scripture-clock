@@ -7,6 +7,7 @@ import { verseKey, type Translation, type VerseRef, type VerseText } from "@/bib
 import { addMinutes, formatTime, nextWithVerses, readingLabel, shownHour, timeLabels, versesForTime, type ClockTime, type Group } from "@/clock/times";
 import { Reference } from "@/components/Reference";
 import { prefetch, useVerseTexts } from "@/clock/useVerses";
+import { Colon } from "@/components/Colon";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useApp, useReadingRules, useTranslation } from "@/state/store";
@@ -15,7 +16,7 @@ const pad = (n: number) => String(n).padStart(2, "0");
 
 function ClockFace({ time, seconds, live }: { time: ClockTime; seconds: number | null; live: boolean }) {
   const format = useApp((s) => s.settings.hourFormat);
-  const separator = <span className={cn("mx-[0.02em] text-primary", live && "animate-[blink_2s_ease-in-out_infinite]")}>:</span>;
+  const separator = <Colon blink={live} className="mx-[0.02em] text-primary" />;
   return (
     <div className="flex items-baseline justify-center gap-2 font-serif tabular-nums" aria-live="off">
       <span

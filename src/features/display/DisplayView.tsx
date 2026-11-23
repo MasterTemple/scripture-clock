@@ -26,6 +26,7 @@ import { CustomizeDialog, type CustomizeTab } from "@/features/customize/Customi
 import { useHistory } from "@/state/history";
 import { toast } from "sonner";
 import { MAX_AT_ONCE, SettingsDialog } from "@/features/settings/SettingsDialog";
+import { TranslationDialog } from "@/features/translations/TranslationDialog";
 import { Stepper } from "@/components/ui/stepper";
 import { Button } from "@/components/ui/button";
 import { Dialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/overlays";
@@ -218,11 +219,13 @@ export function DisplayView({
   const removePin = useApp((s) => s.removePin);
   const [customizing, setCustomizing] = useState<CustomizeTab | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [translationsOpen, setTranslationsOpen] = useState(false);
   const screens = useHistory((s) => s.screens);
   const record = useHistory((s) => s.record);
 
-  // Everything that changes what's picked; the same key keeps the same pick
-  const choices = `${translation.id}|${format}|${others}|${JSON.stringify(priorities)}|${pins.map((p) => p.id).join(",")}`;
+  // Everything that changes what's picked; the same key keeps the same pick. Not the translation:
+  // changing it shows the same verses in the other one
+  const choices = `${format}|${others}|${JSON.stringify(priorities)}|${pins.map((p) => p.id).join(",")}`;
   const seedFor = (t: ClockTime) => `${SALT}|${choices}|${t.hour}:${t.minute}`;
   const key = seedFor(time);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -318,7 +321,7 @@ export function DisplayView({
     const soon = addMinutes(time, 1);
     prefetchFirst(translation, candidatesFor(soon, format, { others, priorities, pins }, seedFor(soon)), count);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [live, key, count, picked.status]);
+  }, [live, key, count, picked.status, translation.id]);
 
   // Pins the verse showing to the time it shows at (both 4:12s on a 12-hour clock), or unpins it;
   // with several showing, they're pinned from the list or the pins dialog instead
@@ -351,11 +354,13 @@ export function DisplayView({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector("[role=menu],[role=dialog]")) return;
+      // A dialog or menu closing on Escape has already handled the key (and is gone from the page)
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || document.querySelector("[role=menu],[role=dialog]")) return;
       if (e.key === " " || e.key === "ArrowRight" || e.key === "n") forward();
       else if (e.key === "ArrowLeft" || e.key === "b") back();
       else if (e.key === "f") fullscreen.toggle(arrangement === "side");
       else if (e.key === "l") cycleLayout();
+      else if (e.key === "t") setTranslationsOpen(true);
       else if (e.key === "+" || e.key === "=") update({ displayCount: Math.min(MAX_AT_ONCE, count + 1) });
       else if (e.key === "-") update({ displayCount: Math.max(1, count - 1) });
       else if (e.key === "Escape" && !document.fullscreenElement) onClose();
@@ -551,6 +556,19 @@ export function DisplayView({
           </Button>
           {customizing && <CustomizeDialog tab={customizing} />}
         </Dialog>
+        <Dialog open={translationsOpen} onOpenChange={(open) => (setTranslationsOpen(open), idle.poke())}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn(barButton, "px-2 font-semibold")}
+            onClick={() => setTranslationsOpen(true)}
+            aria-label={`Translation: ${translation.name}`}
+            title={`${translation.name} (T to change)`}
+          >
+            {translation.abbreviation}
+          </Button>
+          {translationsOpen && <TranslationDialog onDone={() => (setTranslationsOpen(false), idle.poke())} />}
+        </Dialog>
         <Dialog open={settingsOpen} onOpenChange={(open) => (setSettingsOpen(open), idle.poke())}>
           <Button variant="ghost" size="icon" className={barButton} onClick={() => setSettingsOpen(true)} aria-label="Settings" title="Settings">
             <SettingsIcon />
@@ -578,7 +596,7 @@ export function DisplayView({
           bar,
         )}
       >
-        {matchMedia("(pointer: coarse)").matches ? "Swipe left for another verse, right to go back · tap to hide this" : "→ for another verse, ← to go back · + − for how many · L for layout · F for full screen"}
+        {matchMedia("(pointer: coarse)").matches ? "Swipe left for another verse, right to go back · tap to hide this" : "→ for another verse, ← to go back · + − for how many · L for layout · T for translation · F for full screen"}
       </p>
       <span className="sr-only" aria-live="polite">
         {shown.picked.status === "verse" ? shown.picked.items.map((it) => it.reference).join("; ") : ""}

@@ -39,7 +39,7 @@ async function candidateText(translation: Translation, candidate: Candidate): Pr
  * translation, time, and choices) keeps the same pick, however often it renders.
  */
 export function useRandomVerse(translation: Translation, candidates: Candidate[], seed: string, count = 1) {
-  const key = `${seed}|${count}`;
+  const key = `${seed}|${count}|${translation.id}`;
   const [start, setStart] = useState({ key: seed, at: 0 });
   const [picked, setPicked] = useState<{ key: string; at: number; picked: Picked }>({ key: "", at: 0, picked: { status: "loading" } });
   const [attempt, setAttempt] = useState(0);

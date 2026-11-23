@@ -4,6 +4,15 @@ The verses whose chapter and verse match the time on the clock.
 
 **Use it: [mastertemple.github.io/scripture-clock](https://mastertemple.github.io/scripture-clock/)**
 
+<p align="center">
+  <img src="docs/screenshots/landscape.png" alt="5:16 beside Nehemiah 5:16, in the Landscape layout" width="49%">
+  <img src="docs/screenshots/night.png" alt="4:12 beside Daniel 4:12, in the dim amber Night layout" width="49%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/portrait.png" alt="3:16 above James 3:16, in the Portrait layout, dark" width="24%">
+  <img src="docs/screenshots/list.png" alt="Every verse at 12:01: Genesis 12:1, Exodus 12:1, …" width="74%">
+</p>
+
 At **5:48** it shows every chapter 5, verse 48 in the Bible (Matthew 5:48, …), then the clock's digits read another way: **54:8** (Isaiah 54:8). At 12:01, as well as 12:1, there's Psalm 120:1.
 
 - **Live**: the verses change as each minute turns; the next minute's books download ahead of time.

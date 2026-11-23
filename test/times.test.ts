@@ -25,7 +25,12 @@ describe("readings", () => {
 
   it("has nothing at a verse or chapter of 0", () => {
     expect(readings({ hour: 0, minute: 30 }, "24h")).toEqual([]);
-    expect(readings({ hour: 5, minute: 0 }, "12h")).toEqual([]);
+    expect(readings({ hour: 5, minute: 0 }, "12h").filter((r) => !r.hourOnly)).toEqual([]);
+  });
+
+  it("reads the hour alone on the hour", () => {
+    expect(readings({ hour: 21, minute: 0 }, "12h")).toEqual([{ chapter: 1, verse: 9, exact: false, hourOnly: true }]);
+    expect(readings({ hour: 0, minute: 0 }, "24h")).toEqual([]);
   });
 
   it("can leave out other readings", () => {
@@ -46,6 +51,11 @@ describe("versesForTime", () => {
 
   it("finds single-chapter books at 1 o'clock", () => {
     expect(refs(1, 25)["1:25"]).toContain("Jude 1:25");
+  });
+
+  it("finds Jude 9 at 9:00, only in books of one chapter", () => {
+    expect(refs(21, 0)).toEqual({ "1:9": ["Obadiah 9", "Philemon 9", "2 John 9", "3 John 9", "Jude 9"] });
+    expect(refs(21, 0, "24h")["1:21"]).toEqual(["Obadiah 21", "Philemon 21", "Jude 21"]);
   });
 
   it("lists books Genesis to Revelation", () => {

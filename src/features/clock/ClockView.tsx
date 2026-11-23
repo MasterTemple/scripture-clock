@@ -145,10 +145,10 @@ function GroupSection({ group, texts, translation, pinning }: { group: Group; te
     <section className="space-y-3">
       <div className="flex items-baseline gap-3 px-1">
         <h2 className="font-serif text-2xl font-semibold tabular-nums">
-          {group.chapter}:{group.verse}
+          {group.hourOnly ? group.verse : `${group.chapter}:${group.verse}`}
         </h2>
         <span className="text-sm text-muted-foreground">
-          {group.exact ? "the hour and minute" : "the digits read another way"} · {shown.length} {shown.length === 1 ? "verse" : "verses"}
+          {group.exact ? "the hour and minute" : group.hourOnly ? "the hour, in books of one chapter" : "the digits read another way"} · {shown.length} {shown.length === 1 ? "verse" : "verses"}
         </span>
       </div>
       {shown.length > 0 && (
@@ -168,7 +168,7 @@ function GroupSection({ group, texts, translation, pinning }: { group: Group; te
       )}
       {missing.length > 0 && (
         <p className="px-1 text-xs text-muted-foreground">
-          Not in {translation.abbreviation}: {missing.map((v) => `${bookById(v.bookId).name} ${v.chapter}:${v.verse}`).join(", ")}
+          Not in {translation.abbreviation}: {missing.map((v) => formatRef(v)).join(", ")}
         </p>
       )}
     </section>

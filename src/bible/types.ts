@@ -3,6 +3,8 @@ export interface VerseRef {
   bookId: number;
   chapter: number;
   verse: number;
+  /** Written without its chapter, as a verse of a book with one chapter: "Jude 9" */
+  noChapter?: boolean;
 }
 
 /** A passage written in the selection, with the verses it covers */
@@ -20,13 +22,6 @@ export interface VerseText {
   span?: [first: number, last: number];
   /** The chapters a combined verse starts and ends in, when they differ ("1:31-2:1") */
   chapters?: [first: number, last: number];
-}
-
-/** The verses printed with this one, "4–5" or "1:31–2:1"; `null` for a verse printed alone */
-export function spanLabel(t: VerseText): string | null {
-  if (!t.span) return null;
-  const [first, last] = t.span;
-  return t.chapters ? `${t.chapters[0]}:${first}–${t.chapters[1]}:${last}` : `${first}–${last}`;
 }
 
 /** Every verse of one book in one translation, keyed by `chapter:verse` */

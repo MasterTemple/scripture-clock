@@ -1,4 +1,4 @@
-import { verseCount } from "@/bible/topos";
+import { isSingleChapter, verseCount } from "@/bible/topos";
 import type { VerseRef } from "@/bible/types";
 
 /** A time of day, 24-hour */
@@ -15,6 +15,8 @@ export interface Reading {
   verse: number;
   /** The hour as the chapter and the minute as the verse, as the clock shows it */
   exact: boolean;
+  /** On the hour, the hour alone as a verse of a book with one chapter: 9:00 as Jude 9 */
+  hourOnly?: boolean;
 }
 
 export const BOOK_COUNT = 66;
@@ -31,7 +33,8 @@ export const formatTime = (t: ClockTime, format: HourFormat) => `${shownHour(t, 
 /**
  * Every chapter and verse the time can be read as. First the hour and minute (5:48, and 12:05 as
  * 12:5), then the clock's digits split anywhere else (548 as 54:8; 1191 as 119:1), neither part
- * starting with a zero. A chapter or verse of 0 has none.
+ * starting with a zero. A chapter or verse of 0 has none. On the hour, the hour alone is a verse
+ * of the books with one chapter (9:00 as Jude 9).
  */
 export function readings(t: ClockTime, format: HourFormat, others = true): Reading[] {
   const hour = shownHour(t, format);
@@ -42,6 +45,7 @@ export function readings(t: ClockTime, format: HourFormat, others = true): Readi
     out.push({ chapter, verse, exact });
   };
   add(hour, t.minute, true);
+  if (t.minute === 0 && hour >= 1) out.push({ chapter: 1, verse: hour, exact: false, hourOnly: true });
   if (!others) return out;
   const digits = `${hour}${String(t.minute).padStart(2, "0")}`;
   for (let i = 1; i < digits.length; i++) {
@@ -53,12 +57,13 @@ export function readings(t: ClockTime, format: HourFormat, others = true): Readi
   return out;
 }
 
-/** Every book with this chapter and verse, Genesis to Revelation */
-export function versesAt(chapter: number, verse: number): VerseRef[] {
+/** Every book with this chapter and verse, Genesis to Revelation; with `oneChapter`, only books of one chapter */
+export function versesAt(chapter: number, verse: number, oneChapter = false): VerseRef[] {
   const out: VerseRef[] = [];
   for (let bookId = 1; bookId <= BOOK_COUNT; bookId++) {
+    if (oneChapter && !isSingleChapter(bookId)) continue;
     const count = verseCount(bookId, chapter);
-    if (count !== null && count >= verse) out.push({ bookId, chapter, verse });
+    if (count !== null && count >= verse) out.push(oneChapter ? { bookId, chapter, verse, noChapter: true } : { bookId, chapter, verse });
   }
   return out;
 }
@@ -70,7 +75,7 @@ export interface Group extends Reading {
 /** The verses for each reading of the time, leaving out readings no book has */
 export function versesForTime(t: ClockTime, format: HourFormat, others = true): Group[] {
   return readings(t, format, others)
-    .map((r) => ({ ...r, verses: versesAt(r.chapter, r.verse) }))
+    .map((r) => ({ ...r, verses: versesAt(r.chapter, r.verse, r.hourOnly) }))
     .filter((g) => g.verses.length > 0);
 }
 

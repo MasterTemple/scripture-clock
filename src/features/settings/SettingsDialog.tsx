@@ -43,6 +43,9 @@ export function SettingsDialog() {
         <Row title="Other readings" description="Also split the digits other ways: 5:48 as 54:8, 12:01 as 120:1">
           <Switch checked={settings.otherReadings} onCheckedChange={(otherReadings) => update({ otherReadings })} />
         </Row>
+        <Row title="Ignore zeros" description="Also read the time with its zeros left out: 1:10 as 1:1, and 10:01 as 1:1">
+          <Switch checked={settings.ignoreZeros} onCheckedChange={(ignoreZeros) => update({ ignoreZeros })} />
+        </Row>
         <div className="space-y-2 py-3">
           <div className="space-y-0.5">
             <div className="text-sm font-medium">Layout</div>

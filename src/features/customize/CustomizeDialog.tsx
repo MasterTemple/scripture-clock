@@ -4,14 +4,14 @@ import { toast } from "sonner";
 import { bookById, findPassages, formatRef, passageVerses } from "@/bible/topos";
 import type { VerseRef } from "@/bible/types";
 import { BOOK_GROUPS, PRIORITY_LABELS, pinTime, priorityOf, type Priorities, type Priority } from "@/clock/choose";
-import { parseTime, timesFor, type HourFormat } from "@/clock/times";
+import { parseTime, timesFor, type HourFormat, type ReadingRules } from "@/clock/times";
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/overlays";
 import { HistoryList } from "./HistoryList";
 import { Input, Label } from "@/components/ui/primitives";
 import { Segmented } from "@/components/ui/segmented";
 import { cn } from "@/lib/utils";
-import { useApp } from "@/state/store";
+import { useApp, useReadingRules } from "@/state/store";
 
 export type CustomizeTab = "pins" | "books" | "history";
 
@@ -44,16 +44,16 @@ function timeOf(verses: { chapter: number; verse: number }[]) {
 }
 
 /** Whether the clock comes to these verses by itself, and when; a book set to Never it doesn't */
-function reach(verses: VerseRef[], format: HourFormat, others: boolean, priorities: Priorities) {
-  return verses.map((v) => ({ verse: v, times: priorityOf(priorities, v.bookId) === 0 ? [] : timesFor(v, format, others), never: priorityOf(priorities, v.bookId) === 0 }));
+function reach(verses: VerseRef[], format: HourFormat, rules: ReadingRules, priorities: Priorities) {
+  return verses.map((v) => ({ verse: v, times: priorityOf(priorities, v.bookId) === 0 ? [] : timesFor(v, format, rules), never: priorityOf(priorities, v.bookId) === 0 }));
 }
 
 /** "Comes up at 3:16", or which of the verses the clock never comes to by itself */
 function ReachNote({ verses, reference }: { verses: VerseRef[]; reference: string }) {
   const format = useApp((s) => s.settings.hourFormat);
-  const others = useApp((s) => s.settings.otherReadings);
+  const rules = useReadingRules();
   const priorities = useApp((s) => s.priorities);
-  const found = useMemo(() => reach(verses, format, others, priorities), [verses, format, others, priorities]);
+  const found = useMemo(() => reach(verses, format, rules, priorities), [verses, format, rules, priorities]);
   const unreached = found.filter((f) => !f.times.length);
   const neverBook = found.find((f) => f.never);
   const why = neverBook ? `, with ${bookById(neverBook.verse.bookId).name} set to Never` : "";
@@ -98,12 +98,12 @@ function Pins() {
     setTimeText("");
   };
 
-  const others = useApp((s) => s.settings.otherReadings);
+  const rules = useReadingRules();
   const priorities = useApp((s) => s.priorities);
   /** A pin whose verses the clock never comes to by itself */
   const onlyPinned = (reference: string) => {
     const verses = passageVerses(reference);
-    return !!verses?.length && reach(verses, format, others, priorities).every((f) => !f.times.length);
+    return !!verses?.length && reach(verses, format, rules, priorities).every((f) => !f.times.length);
   };
 
   const byTime = useMemo(() => {

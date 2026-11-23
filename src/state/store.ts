@@ -3,7 +3,8 @@ import { persist } from "zustand/middleware";
 import { BUILT_IN, DEFAULT_TRANSLATION } from "@/bible/translations";
 import type { Translation, TranslationEdit } from "@/bible/types";
 import type { Pin, Priorities, Priority } from "@/clock/choose";
-import type { HourFormat } from "@/clock/times";
+import type { HourFormat, ReadingRules } from "@/clock/times";
+import { useMemo } from "react";
 
 export type Theme = "system" | "light" | "dark";
 
@@ -14,6 +15,8 @@ export interface Settings {
   hourFormat: HourFormat;
   /** Also read the clock's digits split other ways: 5:48 as 54:8 */
   otherReadings: boolean;
+  /** Also read the time with its zeros left out: 1:10 as 1:1 */
+  ignoreZeros: boolean;
   showSeconds: boolean;
   /** Keep the screen from sleeping while the clock is open */
   keepAwake: boolean;
@@ -68,6 +71,7 @@ export const useApp = create<State>()(
       settings: {
         hourFormat: defaultHourFormat(),
         otherReadings: true,
+        ignoreZeros: false,
         showSeconds: false,
         keepAwake: false,
         theme: "system",
@@ -119,6 +123,13 @@ export const useApp = create<State>()(
     },
   ),
 );
+
+/** Which ways of reading the time are on, as one object that changes only when they do */
+export function useReadingRules(): ReadingRules {
+  const others = useApp((s) => s.settings.otherReadings);
+  const ignoreZeros = useApp((s) => s.settings.ignoreZeros);
+  return useMemo(() => ({ others, ignoreZeros }), [others, ignoreZeros]);
+}
 
 export const useTranslation = (): Translation => {
   const id = useApp((s) => s.translationId);

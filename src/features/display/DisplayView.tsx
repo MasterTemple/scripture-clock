@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/overlays";
 import { Switch } from "@/components/ui/primitives";
 import { cn, seenAt } from "@/lib/utils";
-import { useApp, useTranslation } from "@/state/store";
+import { useApp, useReadingRules, useTranslation } from "@/state/store";
 import { LAYOUTS } from "./layouts";
 import { useFitText } from "./useFitText";
 import { prefetchFirst, SALT, useRandomVerse, type Picked } from "./useRandomVerse";
@@ -109,7 +109,8 @@ function Verses({
   const content = picked.status === "verse" ? picked.items.map((it) => it.candidate.id + it.text).join("|") : picked.status;
   const { box, text } = useFitText<HTMLDivElement, HTMLDivElement>(content, { min: 10, max });
   const centered = align === "center";
-  const labels = timeLabels(time, format);
+  const ignoreZeros = useApp((s) => s.settings.ignoreZeros);
+  const labels = timeLabels(time, format, { ignoreZeros });
 
   let body: ReactNode;
   if (picked.status === "verse") {
@@ -195,7 +196,7 @@ export function DisplayView({
 }) {
   const translation = useTranslation();
   const format = useApp((s) => s.settings.hourFormat);
-  const others = useApp((s) => s.settings.otherReadings);
+  const rules = useReadingRules();
   const layout = useApp((s) => s.settings.displayLayout);
   const count = useApp((s) => s.settings.displayCount);
   const showSeconds = useApp((s) => s.settings.showSeconds);
@@ -218,7 +219,7 @@ export function DisplayView({
 
   // Everything that changes what's picked; the same key keeps the same pick. Not the translation:
   // changing it shows the same verses in the other one
-  const choices = `${format}|${others}|${onlyPinned}|${JSON.stringify(priorities)}|${pins.map((p) => p.id).join(",")}`;
+  const choices = `${format}|${rules.others}|${rules.ignoreZeros}|${onlyPinned}|${JSON.stringify(priorities)}|${pins.map((p) => p.id).join(",")}`;
   const seedFor = (t: ClockTime) => `${SALT}|${choices}|${t.hour}:${t.minute}`;
   /**
    * The time whose verses show: now, or with only pinned verses, the last time pinned (so a pinned
@@ -228,7 +229,7 @@ export function DisplayView({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const source = useMemo(() => sourceFor(time), [choices, time.hour, time.minute]);
   const key = seedFor(source ?? time);
-  const options = { others, priorities, pins, onlyPinned };
+  const options = { rules, priorities, pins, onlyPinned };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const candidates = useMemo(() => (source ? candidatesFor(source, format, options, key) : []), [key]);
   /** With only pinned verses, when the next ones come, for the bar */

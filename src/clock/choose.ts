@@ -1,7 +1,7 @@
 import { formatRef, passageVerses } from "@/bible/topos";
 import { verseKey, type VerseRef } from "@/bible/types";
 import { hashString, shuffled, weightedShuffled } from "./random";
-import { addMinutes, shownHour, versesForTime, type ClockTime, type HourFormat } from "./times";
+import { addMinutes, shownHour, versesForTime, type ClockTime, type HourFormat, type ReadingRules } from "./times";
 
 /** How often a book's verses are picked: never, less, normal, more, most */
 export type Priority = 0 | 1 | 2 | 3 | 4;
@@ -88,7 +88,7 @@ export function nextPinnedTime(t: ClockTime, format: HourFormat, pins: Pin[]): C
 export function candidatesFor(
   t: ClockTime,
   format: HourFormat,
-  options: { others: boolean; priorities: Priorities; pins: Pin[]; onlyPinned?: boolean },
+  options: { rules: Partial<ReadingRules>; priorities: Priorities; pins: Pin[]; onlyPinned?: boolean },
   seed: string,
 ): Candidate[] {
   const pinned: Candidate[] = [];
@@ -100,7 +100,7 @@ export function candidatesFor(
     if (verses.length === 1) pinnedVerses.add(verseKey(verses[0]!));
   }
   if (options.onlyPinned) return shuffled(pinned, hashString(`${seed}|pins`));
-  const atTime = versesForTime(t, format, options.others)
+  const atTime = versesForTime(t, format, options.rules)
     .flatMap((g) => g.verses)
     .filter((v) => !pinnedVerses.has(verseKey(v)));
   const weighted = weightedShuffled(atTime, (v) => PRIORITY_WEIGHTS[priorityOf(options.priorities, v.bookId)], hashString(`${seed}|time`));

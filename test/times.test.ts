@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { formatRef, loadTopos } from "@/bible/topos";
-import { addMinutes, nextWithVerses, parseTime, PER_MINUTE, readings, slotOf, splitMatch, timeLabels, timesFor, versesForTime } from "@/clock/times";
+import { addMinutes, nextWithVerses, readingLabel, parseTime, PER_MINUTE, readings, slotOf, splitMatch, timeLabels, timesFor, versesForTime } from "@/clock/times";
 
 beforeAll(loadTopos);
 
@@ -34,7 +34,7 @@ describe("readings", () => {
   });
 
   it("can leave out other readings", () => {
-    expect(readings({ hour: 5, minute: 48 }, "12h", false)).toHaveLength(1);
+    expect(readings({ hour: 5, minute: 48 }, "12h", { others: false })).toHaveLength(1);
   });
 });
 
@@ -127,9 +127,35 @@ describe("when the clock comes to a verse", () => {
 
   it("has none for a verse the clock never comes to", () => {
     expect(timesFor({ bookId: 19, chapter: 119, verse: 105 }, "12h")).toEqual([]);
-    expect(timesFor({ bookId: 23, chapter: 54, verse: 8 }, "12h", false)).toEqual([]);
+    expect(timesFor({ bookId: 23, chapter: 54, verse: 8 }, "12h", { others: false })).toEqual([]);
     expect(timesFor({ bookId: 19, chapter: 99, verse: 1 }, "12h")).toEqual([]);
     expect(timesFor({ bookId: 19, chapter: 23, verse: 1 }, "12h")).toEqual(["2:31"]);
     expect(timesFor({ bookId: 19, chapter: 23, verse: 1 }, "24h")).toEqual(["2:31", "23:01"]);
+  });
+});
+
+describe("ignoring zeros", () => {
+  const labels = (hour: number, minute: number, others = true) =>
+    readings({ hour, minute }, "12h", { others, ignoreZeros: true }).map(readingLabel);
+
+  it("reads 1:10 as 1:1 too, and 1:01 as 1:1 and 10:1", () => {
+    expect(labels(1, 10)).toEqual(["1:10", "1:1"]);
+    expect(labels(1, 1)).toEqual(["1:1", "10:1"]);
+    expect(labels(10, 1)).toEqual(["10:1", "1:1", "100:1"]);
+  });
+
+  it("splits the digits left anywhere, with other readings", () => {
+    expect(labels(10, 12)).toEqual(["10:12", "1:12", "101:2", "11:2"]);
+    expect(labels(10, 12, false)).toEqual(["10:12", "1:12"]);
+  });
+
+  it("is off unless chosen", () => {
+    expect(readings({ hour: 1, minute: 10 }, "12h").map(readingLabel)).toEqual(["1:10"]);
+  });
+
+  it("finds John 1:1 at 1:10", () => {
+    const john = versesForTime({ hour: 1, minute: 10 }, "12h", { ignoreZeros: true }).find((g) => g.zeroless);
+    expect(john?.verses.map((v) => formatRef(v))).toContain("John 1:1");
+    expect(timesFor({ bookId: 43, chapter: 1, verse: 1 }, "12h", { ignoreZeros: true })).toEqual(["1:01", "1:10", "10:01", "10:10", "11:00"]);
   });
 });

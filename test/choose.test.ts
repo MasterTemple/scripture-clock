@@ -7,7 +7,7 @@ beforeAll(loadTopos);
 
 const pin = (hour: number, minute: number, reference: string, id = reference): Pin => ({ id, hour, minute, reference });
 const at = (hour: number, minute: number) => ({ hour, minute });
-const none = { others: true, priorities: {}, pins: [] as Pin[] };
+const none = { rules: { others: true }, priorities: {}, pins: [] as Pin[] };
 
 describe("pins", () => {
   it("a pin at 4:12 is for both 4:12s on a 12-hour clock, and only the morning on a 24-hour one", () => {
@@ -35,7 +35,7 @@ describe("pins", () => {
 
 describe("priorities", () => {
   it("leaves out books set to Never", () => {
-    const list = candidatesFor(at(1, 1), "12h", { ...none, others: false, priorities: { 1: 0, 43: 0 } }, "seed");
+    const list = candidatesFor(at(1, 1), "12h", { ...none, rules: { others: false }, priorities: { 1: 0, 43: 0 } }, "seed");
     expect(list.some((c) => c.verses[0]!.bookId === 1 || c.verses[0]!.bookId === 43)).toBe(false);
     expect(list).toHaveLength(64);
   });

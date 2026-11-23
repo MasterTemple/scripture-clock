@@ -41,6 +41,7 @@ function Row({ row, terms }: { row: SeenRow; terms: string[] }) {
   const [open, setOpen] = useState(false);
   const addPins = useApp((s) => s.addPins);
   const format = useApp((s) => s.settings.hourFormat);
+  const ignoreZeros = useApp((s) => s.settings.ignoreZeros);
   const { screen, item } = row;
   const hour = format === "12h" ? screen.hour % 12 || 12 : screen.hour;
   const clock = `${hour}:${String(screen.minute).padStart(2, "0")}`;
@@ -55,7 +56,7 @@ function Row({ row, terms }: { row: SeenRow; terms: string[] }) {
           <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">
             {item.pinned && <PinIcon className="size-3 shrink-0 -rotate-12" aria-label="Pinned" />}
             <span className="truncate">
-              <Reference reference={item.reference} labels={timeLabels(screen, format)} />
+              <Reference reference={item.reference} labels={timeLabels(screen, format, { ignoreZeros })} />
             </span>
             <span className="shrink-0 text-xs font-normal text-muted-foreground">{screen.abbreviation}</span>
           </span>

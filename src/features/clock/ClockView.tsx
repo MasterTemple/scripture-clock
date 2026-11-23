@@ -9,7 +9,7 @@ import { Reference } from "@/components/Reference";
 import { prefetch, useVerseTexts } from "@/clock/useVerses";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useApp, useTranslation } from "@/state/store";
+import { useApp, useReadingRules, useTranslation } from "@/state/store";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -154,7 +154,13 @@ function GroupSection({ group, texts, translation, pinning }: { group: Group; te
           {readingLabel(group)}
         </h2>
         <span className="text-sm text-muted-foreground">
-          {group.exact ? "the hour and minute" : group.hourOnly ? "the hour, in books of one chapter" : "the digits read another way"} · {shown.length} {shown.length === 1 ? "verse" : "verses"}
+          {group.exact
+            ? "the hour and minute"
+            : group.hourOnly
+              ? "the hour, in books of one chapter"
+              : group.zeroless
+                ? "the digits without their zeros"
+                : "the digits read another way"} · {shown.length} {shown.length === 1 ? "verse" : "verses"}
         </span>
       </div>
       {shown.length > 0 && (
@@ -185,14 +191,14 @@ function GroupSection({ group, texts, translation, pinning }: { group: Group; te
 export function ClockView({ time, seconds, live, onPin }: { time: ClockTime; seconds: number | null; live: boolean; onPin: (t: ClockTime | null) => void }) {
   const translation = useTranslation();
   const format = useApp((s) => s.settings.hourFormat);
-  const others = useApp((s) => s.settings.otherReadings);
+  const rules = useReadingRules();
   const priorities = useApp((s) => s.priorities);
   const pins = useApp((s) => s.pins);
   const addPins = useApp((s) => s.addPins);
   const removePin = useApp((s) => s.removePin);
-  const minuteKey = `${format}|${others}|${time.hour}:${time.minute}`;
+  const minuteKey = `${format}|${rules.others}|${rules.ignoreZeros}|${time.hour}:${time.minute}`;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const allGroups = useMemo(() => versesForTime(time, format, others), [minuteKey]);
+  const allGroups = useMemo(() => versesForTime(time, format, rules), [minuteKey]);
   // Books set to Never are left out
   const groups = useMemo(
     () => allGroups.map((g) => ({ ...g, verses: g.verses.filter((v) => priorityOf(priorities, v.bookId) > 0) })).filter((g) => g.verses.length),
@@ -209,7 +215,7 @@ export function ClockView({ time, seconds, live, onPin }: { time: ClockTime; sec
   );
   const verses = useMemo(() => [...pinned.flatMap((p) => p.verses), ...groups.flatMap((g) => g.verses)], [pinned, groups]);
 
-  const labels = useMemo(() => timeLabels(time, format), [minuteKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const labels = useMemo(() => timeLabels(time, format, { ignoreZeros: rules.ignoreZeros }), [minuteKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const clockLabel = `${shownHour(time, format)}:${String(time.minute).padStart(2, "0")}`;
   const singlePinsFor = (v: VerseRef) => pinned.filter((p) => p.verses.length === 1 && verseKey(p.verses[0]!) === verseKey(v)).map((p) => p.pin);
   const pinning: Pinning = {
@@ -223,12 +229,12 @@ export function ClockView({ time, seconds, live, onPin }: { time: ClockTime; sec
   };
   const { texts, errors, loading, retry } = useVerseTexts(translation, verses);
   const nothing = groups.length === 0 && pinned.length === 0;
-  const next = useMemo(() => (nothing ? nextWithVerses(time, format, others) : null), [nothing, minuteKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const next = useMemo(() => (nothing ? nextWithVerses(time, format, rules) : null), [nothing, minuteKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ready for the next minute before it comes
   useEffect(() => {
     if (!live || loading) return;
-    prefetch(translation, versesForTime(addMinutes(time, 1), format, others).flatMap((g) => g.verses));
+    prefetch(translation, versesForTime(addMinutes(time, 1), format, rules).flatMap((g) => g.verses));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live, loading, translation, minuteKey]);
 

@@ -17,7 +17,19 @@ export interface Reading {
   exact: boolean;
   /** On the hour, the hour alone as a verse of a book with one chapter: 9:00 as Jude 9 */
   hourOnly?: boolean;
+  /** Read with the zeros left out: 1:10 as 1:1 */
+  zeroless?: boolean;
 }
+
+/** Which ways of reading the time are on, besides the hour and minute */
+export interface ReadingRules {
+  /** The digits split other ways: 5:48 as 54:8 */
+  others: boolean;
+  /** The zeros left out: 1:10 as 1:1, 10:01 as 1:1 */
+  ignoreZeros: boolean;
+}
+
+export const DEFAULT_RULES: ReadingRules = { others: true, ignoreZeros: false };
 
 export const BOOK_COUNT = 66;
 
@@ -34,25 +46,34 @@ export const formatTime = (t: ClockTime, format: HourFormat) => `${shownHour(t, 
  * Every chapter and verse the time can be read as. First the hour and minute (5:48, and 12:05 as
  * 12:5), then the clock's digits split anywhere else (548 as 54:8; 1191 as 119:1), neither part
  * starting with a zero. A chapter or verse of 0 has none. On the hour, the hour alone is a verse
- * of the books with one chapter (9:00 as Jude 9).
+ * of the books with one chapter (9:00 as Jude 9). Ignoring zeros, the hour and minute are read
+ * without theirs too (1:10 as 1:1, 10:01 as 1:1), and with other readings, the digits left are
+ * split anywhere (10:12 as 11:2 and 1:12).
  */
-export function readings(t: ClockTime, format: HourFormat, others = true): Reading[] {
+export function readings(t: ClockTime, format: HourFormat, rules: Partial<ReadingRules> = {}): Reading[] {
+  const { others, ignoreZeros } = { ...DEFAULT_RULES, ...rules };
   const hour = shownHour(t, format);
   const out: Reading[] = [];
-  const add = (chapter: number, verse: number, exact: boolean) => {
+  const add = (chapter: number, verse: number, kind: "exact" | "other" | "zeroless") => {
     if (chapter < 1 || verse < 1) return;
     if (out.some((r) => r.chapter === chapter && r.verse === verse)) return;
-    out.push({ chapter, verse, exact });
+    out.push(kind === "zeroless" ? { chapter, verse, exact: false, zeroless: true } : { chapter, verse, exact: kind === "exact" });
   };
-  add(hour, t.minute, true);
+  const noZeros = (n: number | string) => String(n).replaceAll("0", "");
+  add(hour, t.minute, "exact");
   if (t.minute === 0 && hour >= 1) out.push({ chapter: 1, verse: hour, exact: false, hourOnly: true });
+  if (ignoreZeros && noZeros(hour) && noZeros(t.minute)) add(Number(noZeros(hour)), Number(noZeros(t.minute)), "zeroless");
   if (!others) return out;
   const digits = `${hour}${String(t.minute).padStart(2, "0")}`;
   for (let i = 1; i < digits.length; i++) {
     const chapter = digits.slice(0, i);
     const verse = digits.slice(i);
     if (chapter.startsWith("0") || verse.startsWith("0")) continue;
-    add(Number(chapter), Number(verse), false);
+    add(Number(chapter), Number(verse), "other");
+  }
+  if (ignoreZeros) {
+    const left = noZeros(digits);
+    for (let i = 1; i < left.length; i++) add(Number(left.slice(0, i)), Number(left.slice(i)), "zeroless");
   }
   return out;
 }
@@ -72,7 +93,8 @@ export function versesAt(chapter: number, verse: number, oneChapter = false): Ve
 export const readingLabel = (r: Reading) => (r.hourOnly ? `${r.verse}` : `${r.chapter}:${r.verse}`);
 
 /** Every way the time is written in a reference that matches it: "5:48", "54:8"; "9" at 9:00 */
-export const timeLabels = (t: ClockTime, format: HourFormat): string[] => readings(t, format).map(readingLabel);
+export const timeLabels = (t: ClockTime, format: HourFormat, rules: Partial<ReadingRules> = {}): string[] =>
+  readings(t, format, rules).map(readingLabel);
 
 /**
  * A reference split around the chapter and verse that match the time ("Matthew ", "5:48", ""), or
@@ -92,8 +114,8 @@ export interface Group extends Reading {
 }
 
 /** The verses for each reading of the time, leaving out readings no book has */
-export function versesForTime(t: ClockTime, format: HourFormat, others = true): Group[] {
-  return readings(t, format, others)
+export function versesForTime(t: ClockTime, format: HourFormat, rules: Partial<ReadingRules> = {}): Group[] {
+  return readings(t, format, rules)
     .map((r) => ({ ...r, verses: versesAt(r.chapter, r.verse, r.hourOnly) }))
     .filter((g) => g.verses.length > 0);
 }
@@ -102,8 +124,8 @@ export function versesForTime(t: ClockTime, format: HourFormat, others = true): 
  * When the clock comes to a verse by itself, as it's shown ("3:16", "15:16" on a 24-hour clock);
  * empty when it never does, and only a pin can show it
  */
-export function timesFor(v: VerseRef, format: HourFormat, others = true): string[] {
-  const index = dayIndex(format, others);
+export function timesFor(v: VerseRef, format: HourFormat, rules: Partial<ReadingRules> = {}): string[] {
+  const index = dayIndex(format, { ...DEFAULT_RULES, ...rules });
   const exact = index.get(`${v.chapter}:${v.verse}`) ?? [];
   const alone = v.chapter === 1 && isSingleChapter(v.bookId) ? (index.get(`${v.verse}`) ?? []) : [];
   const out = [...new Set([...exact, ...alone])];
@@ -113,15 +135,15 @@ export function timesFor(v: VerseRef, format: HourFormat, others = true): string
 const indexes = new Map<string, Map<string, string[]>>();
 
 /** Every reading of a day's times, by how it's written ("5:48", or "9" for the hour alone) */
-function dayIndex(format: HourFormat, others: boolean): Map<string, string[]> {
-  const key = `${format}|${others}`;
+function dayIndex(format: HourFormat, rules: ReadingRules): Map<string, string[]> {
+  const key = `${format}|${rules.others}|${rules.ignoreZeros}`;
   let index = indexes.get(key);
   if (index) return index;
   index = new Map();
   for (let hour = 0; hour < (format === "24h" ? 24 : 12); hour++) {
     for (let minute = 0; minute < 60; minute++) {
       const t = { hour, minute };
-      for (const r of readings(t, format, others)) {
+      for (const r of readings(t, format, rules)) {
         const label = readingLabel(r);
         index.set(label, [...(index.get(label) ?? []), formatTime(t, format)]);
       }
@@ -150,10 +172,10 @@ export const addMinutes = (t: ClockTime, n: number): ClockTime => {
 export const sameTime = (a: ClockTime, b: ClockTime) => a.hour === b.hour && a.minute === b.minute;
 
 /** The next time, after this one, that has a verse (searching a whole day) */
-export function nextWithVerses(t: ClockTime, format: HourFormat, others = true, step = 1): ClockTime | null {
+export function nextWithVerses(t: ClockTime, format: HourFormat, rules: Partial<ReadingRules> = {}, step = 1): ClockTime | null {
   for (let i = 1; i < 1440; i++) {
     const next = addMinutes(t, i * step);
-    if (versesForTime(next, format, others).length) return next;
+    if (versesForTime(next, format, rules).length) return next;
   }
   return null;
 }

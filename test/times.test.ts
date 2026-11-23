@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { formatRef, loadTopos } from "@/bible/topos";
-import { addMinutes, nextWithVerses, parseTime, PER_MINUTE, readings, slotOf, versesForTime } from "@/clock/times";
+import { addMinutes, nextWithVerses, parseTime, PER_MINUTE, readings, slotOf, splitMatch, timeLabels, versesForTime } from "@/clock/times";
 
 beforeAll(loadTopos);
 
@@ -93,5 +93,25 @@ describe("parts of a minute", () => {
       expect(60 % n).toBe(0);
       expect(new Set(Array.from({ length: 60 }, (_, s) => slotOf(s, n))).size).toBe(n);
     }
+  });
+});
+
+describe("matching the time", () => {
+  const labels = (hour: number, minute: number) => timeLabels({ hour, minute }, "12h");
+
+  it("finds the chapter and verse that match", () => {
+    expect(splitMatch("Matthew 5:48", labels(5, 48))).toEqual(["Matthew ", "5:48", ""]);
+    expect(splitMatch("Isaiah 54:8", labels(5, 48))).toEqual(["Isaiah ", "54:8", ""]);
+    expect(splitMatch("1 John 5:4–5", labels(5, 4))).toEqual(["1 John ", "5:4", "–5"]);
+  });
+
+  it("finds Jude 9 at 9:00, and at 1:09", () => {
+    expect(splitMatch("Jude 9", labels(21, 0))).toEqual(["Jude ", "9", ""]);
+    expect(splitMatch("Jude 9", labels(1, 9))).toEqual(["Jude ", "9", ""]);
+  });
+
+  it("leaves a verse that doesn't match alone", () => {
+    expect(splitMatch("John 3:16", labels(5, 48))).toBeNull();
+    expect(splitMatch("Jude 9", labels(9, 1))).toBeNull();
   });
 });

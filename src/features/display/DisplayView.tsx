@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { candidatesFor, pinsAt } from "@/clock/choose";
-import { addMinutes, formatTime, PER_MINUTE, shownHour, slotLength, slotOf, type ClockTime, type HourFormat } from "@/clock/times";
+import { addMinutes, formatTime, PER_MINUTE, shownHour, slotLength, slotOf, timeLabels, type ClockTime, type HourFormat } from "@/clock/times";
+import { Reference } from "@/components/Reference";
 import { CustomizeDialog, type CustomizeTab } from "@/features/customize/CustomizeDialog";
 import { useHistory } from "@/state/history";
 import { toast } from "sonner";
@@ -115,6 +116,7 @@ function Verses({
   const content = picked.status === "verse" ? picked.items.map((it) => it.candidate.id + it.text).join("|") : picked.status;
   const { box, text } = useFitText<HTMLDivElement, HTMLDivElement>(content, { min: 10, max });
   const centered = align === "center";
+  const labels = timeLabels(time, format);
 
   let body: ReactNode;
   if (picked.status === "verse") {
@@ -127,7 +129,7 @@ function Verses({
           style={{ fontSize: "clamp(0.72rem, 0.4em, 1.25rem)" }}
         >
           {it.candidate.pinned && <PinIcon className="mr-1.5 inline size-[0.9em] -rotate-12 align-[-0.1em]" aria-label="Pinned" />}
-          {it.reference} <span className="opacity-60">· {abbreviation}</span>
+          <Reference reference={it.reference} labels={labels} /> <span className="opacity-60">· {abbreviation}</span>
         </div>
       </div>
     ));

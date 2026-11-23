@@ -2,6 +2,8 @@ import { CopyIcon, PinIcon, SearchIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useDeferredValue, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { filterHistory, highlightTerms, type Period, type SeenRow } from "@/clock/historySearch";
+import { timeLabels } from "@/clock/times";
+import { Reference } from "@/components/Reference";
 import { Button } from "@/components/ui/button";
 import { Input, Switch } from "@/components/ui/primitives";
 import { Segmented } from "@/components/ui/segmented";
@@ -52,7 +54,9 @@ function Row({ row, terms }: { row: SeenRow; terms: string[] }) {
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">
             {item.pinned && <PinIcon className="size-3 shrink-0 -rotate-12" aria-label="Pinned" />}
-            <span className="truncate">{item.reference}</span>
+            <span className="truncate">
+              <Reference reference={item.reference} labels={timeLabels(screen, format)} />
+            </span>
             <span className="shrink-0 text-xs font-normal text-muted-foreground">{screen.abbreviation}</span>
           </span>
           <span className={cn("mt-0.5 block font-serif text-[15px] leading-snug text-foreground/85", !open && "line-clamp-2")}>

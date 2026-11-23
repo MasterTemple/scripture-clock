@@ -68,6 +68,25 @@ export function versesAt(chapter: number, verse: number, oneChapter = false): Ve
   return out;
 }
 
+/** How a reading is written in a reference: "5:48", or "9" for the hour alone (Jude 9) */
+export const readingLabel = (r: Reading) => (r.hourOnly ? `${r.verse}` : `${r.chapter}:${r.verse}`);
+
+/** Every way the time is written in a reference that matches it: "5:48", "54:8"; "9" at 9:00 */
+export const timeLabels = (t: ClockTime, format: HourFormat): string[] => readings(t, format).map(readingLabel);
+
+/**
+ * A reference split around the chapter and verse that match the time ("Matthew ", "5:48", ""), or
+ * `null` when it doesn't match. "Jude 9" matches 1:09 too, being Jude 1:9.
+ */
+export function splitMatch(reference: string, labels: string[]): [before: string, match: string, after: string] | null {
+  const m = /(\d+:)?(\d+)([–-][\d:]+)?$/.exec(reference);
+  if (!m || m.index === 0) return null;
+  const start = `${m[1] ?? ""}${m[2]}`;
+  const same = labels.includes(start) || (!m[1] && labels.includes(`1:${m[2]}`));
+  if (!same) return null;
+  return [reference.slice(0, m.index), start, reference.slice(m.index + start.length)];
+}
+
 export interface Group extends Reading {
   verses: VerseRef[];
 }

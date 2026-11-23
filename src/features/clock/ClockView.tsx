@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { bookById, formatPrinted, formatRef, passageVerses } from "@/bible/topos";
 import { pinsAt, priorityOf } from "@/clock/choose";
 import { verseKey, type Translation, type VerseRef, type VerseText } from "@/bible/types";
-import { addMinutes, formatTime, nextWithVerses, shownHour, versesForTime, type ClockTime, type Group } from "@/clock/times";
+import { addMinutes, formatTime, nextWithVerses, readingLabel, shownHour, timeLabels, versesForTime, type ClockTime, type Group } from "@/clock/times";
+import { Reference } from "@/components/Reference";
 import { prefetch, useVerseTexts } from "@/clock/useVerses";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -75,8 +76,11 @@ function VerseCard({
   pinned,
   onTogglePin,
   pinLabel,
+  labels,
 }: {
   title: string;
+  /** The time as written in a reference, to highlight in the title when it matches */
+  labels: string[];
   text: string | undefined;
   translation: Translation;
   pinned: boolean;
@@ -104,7 +108,9 @@ function VerseCard({
       <div className="mb-2 flex items-center justify-between gap-3">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-primary">
           {pinned && <PinIcon className="size-3.5 -rotate-12" aria-label="Pinned" />}
-          {title}
+          <span>
+            <Reference reference={title} labels={labels} />
+          </span>
         </h3>
         <div className="flex items-center">
           <button onClick={onTogglePin} aria-label={pinLabel} title={pinLabel} className={cn(action, pinned && "text-primary opacity-100")}>
@@ -145,7 +151,7 @@ function GroupSection({ group, texts, translation, pinning }: { group: Group; te
     <section className="space-y-3">
       <div className="flex items-baseline gap-3 px-1">
         <h2 className="font-serif text-2xl font-semibold tabular-nums">
-          {group.hourOnly ? group.verse : `${group.chapter}:${group.verse}`}
+          {readingLabel(group)}
         </h2>
         <span className="text-sm text-muted-foreground">
           {group.exact ? "the hour and minute" : group.hourOnly ? "the hour, in books of one chapter" : "the digits read another way"} · {shown.length} {shown.length === 1 ? "verse" : "verses"}
@@ -157,6 +163,7 @@ function GroupSection({ group, texts, translation, pinning }: { group: Group; te
             <VerseCard
               key={verseKey(v)}
               title={texts.get(verseKey(v)) ? formatPrinted(v, texts.get(verseKey(v))!) : formatRef(v)}
+              labels={[readingLabel(group)]}
               text={texts.get(verseKey(v))?.text}
               translation={translation}
               pinned={pinning.isPinned(v)}
@@ -202,6 +209,7 @@ export function ClockView({ time, seconds, live, onPin }: { time: ClockTime; sec
   );
   const verses = useMemo(() => [...pinned.flatMap((p) => p.verses), ...groups.flatMap((g) => g.verses)], [pinned, groups]);
 
+  const labels = useMemo(() => timeLabels(time, format), [minuteKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const clockLabel = `${shownHour(time, format)}:${String(time.minute).padStart(2, "0")}`;
   const singlePinsFor = (v: VerseRef) => pinned.filter((p) => p.verses.length === 1 && verseKey(p.verses[0]!) === verseKey(v)).map((p) => p.pin);
   const pinning: Pinning = {
@@ -293,6 +301,7 @@ export function ClockView({ time, seconds, live, onPin }: { time: ClockTime; sec
                     pinned
                     onTogglePin={() => removePin(pin.id)}
                     pinLabel={`Unpin from ${clockLabel}`}
+                    labels={labels}
                   />
                 );
               })}

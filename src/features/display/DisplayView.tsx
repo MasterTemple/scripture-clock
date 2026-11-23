@@ -54,9 +54,12 @@ function Clock({
   style,
   className,
   colon = "text-primary",
+  smallSeconds = false,
 }: {
   time: ClockTime;
   seconds?: number | null;
+  /** The seconds small, above AM/PM, where the clock is beside the verse and has no room across */
+  smallSeconds?: boolean;
   format: HourFormat;
   style?: CSSProperties;
   className?: string;
@@ -68,13 +71,19 @@ function Clock({
       <span>{shownHour(time, format)}</span>
       {separator}
       <span>{pad(time.minute)}</span>
-      {seconds !== null && (
+      {seconds !== null && !smallSeconds && (
         <>
           {separator}
           <span>{pad(seconds)}</span>
         </>
       )}
-      {format === "12h" && <span className="ml-[0.12em] font-sans text-[0.2em] font-medium tracking-normal opacity-60">{time.hour < 12 ? "AM" : "PM"}</span>}
+      {(format === "12h" || (smallSeconds && seconds !== null)) && (
+        <span className="relative ml-[0.12em] font-sans text-[0.2em] font-medium tracking-normal opacity-60">
+          {/* Above AM/PM, or where it would be on a 24-hour clock */}
+          {smallSeconds && seconds !== null && <span className="absolute bottom-full left-0 mb-[0.15em] tabular-nums">{pad(seconds)}</span>}
+          {format === "12h" ? (time.hour < 12 ? "AM" : "PM") : <span className="invisible">00</span>}
+        </span>
+      )}
     </div>
   );
 }
@@ -413,7 +422,7 @@ export function DisplayView({
     content = (
       <div className="grid h-full grid-cols-[auto_minmax(0,1fr)] items-center gap-[5vw] py-[7vh] pr-[max(env(safe-area-inset-right),6vw)] pl-[max(env(safe-area-inset-left),6vw)]">
         <div className={cn("flex h-full items-center border-r pr-[5vw]", night ? "border-[#c98a5a]/15" : "border-border")}>
-          <Clock time={shown.time} seconds={shown.seconds} format={format} style={{ fontSize: seconds === null ? "min(26vh, 14vw)" : "min(20vh, 9.5vw)" }} className={night ? nightText : undefined} colon={night ? "text-[#c98a5a]/60" : undefined} />
+          <Clock time={shown.time} seconds={shown.seconds} smallSeconds format={format} style={{ fontSize: "min(26vh, 14vw)" }} className={night ? nightText : undefined} colon={night ? "text-[#c98a5a]/60" : undefined} />
         </div>
         <Verses
           {...verseProps}

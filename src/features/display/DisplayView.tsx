@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/overlays";
 import { Switch } from "@/components/ui/primitives";
 import { cn, seenAt } from "@/lib/utils";
-import { useApp, useReadingRules, useTranslation } from "@/state/store";
+import { useApp, useReadingRules, useTranslation, type DisplayLayout } from "@/state/store";
 import { LAYOUTS } from "./layouts";
 import { useFitText } from "./useFitText";
 import { prefetchFirst, SALT, useRandomVerse, type Picked } from "./useRandomVerse";
@@ -360,13 +360,25 @@ export function DisplayView({
     };
   }, []);
 
+  /** How a layout looks on this screen: Auto is Landscape when it's wide, and Portrait when tall */
+  const looksOf = useCallback(
+    (l: DisplayLayout) => (l === "night" ? "night" : l === "auto" ? (landscape ? "side" : "stacked") : l),
+    [landscape],
+  );
   const arrangement = layout === "auto" || layout === "night" ? (landscape ? "side" : "stacked") : layout;
   const night = layout === "night";
 
+  // On to the next layout that looks different, so every press changes something
   const cycleLayout = useCallback(() => {
     const i = LAYOUTS.findIndex((l) => l.value === layout);
-    update({ displayLayout: LAYOUTS[(i + 1) % LAYOUTS.length]!.value });
-  }, [layout, update]);
+    for (let step = 1; step < LAYOUTS.length; step++) {
+      const next = LAYOUTS[(i + step) % LAYOUTS.length]!;
+      if (looksOf(next.value) === looksOf(layout)) continue;
+      update({ displayLayout: next.value });
+      toast(next.label, { id: "layout", description: next.description, duration: 1200 });
+      return;
+    }
+  }, [layout, update, looksOf]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

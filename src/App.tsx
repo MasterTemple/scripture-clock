@@ -1,5 +1,5 @@
 import { ChevronDownIcon, HistoryIcon, MonitorIcon, SettingsIcon, SlidersHorizontalIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogTrigger } from "@/components/ui/overlays";
@@ -44,14 +44,32 @@ function Logo() {
   );
 }
 
+const TOASTS = {
+  "--normal-bg": "var(--popover)",
+  "--normal-text": "var(--popover-foreground)",
+  "--normal-border": "var(--border)",
+  "--success-bg": "var(--popover)",
+  "--success-text": "var(--success)",
+  "--success-border": "var(--border)",
+  "--error-bg": "var(--popover)",
+  "--error-text": "var(--destructive)",
+  "--error-border": "var(--border)",
+};
+const NIGHT_TOASTS = Object.fromEntries(
+  Object.keys(TOASTS).map((k) => [k, k.endsWith("-bg") ? "#0d0a08" : k.endsWith("-border") ? "rgb(201 138 90 / 0.2)" : "#c98a5a"]),
+);
+
 export default function App() {
   useTheme();
+  const theme = useApp((s) => s.settings.theme);
+  const layout = useApp((s) => s.settings.displayLayout);
   const translation = useTranslation();
   const showSeconds = useApp((s) => s.settings.showSeconds);
   const keepAwake = useApp((s) => s.settings.keepAwake);
   const [pinned, pin] = usePinnedTime();
   const perMinute = useApp((s) => s.settings.perMinute);
   const [displayOpen, setDisplayOpen] = useDisplayOpen();
+  const night = displayOpen && layout === "night";
   // Every second for the seconds, or for the display to move on partway through a minute
   const now = useNow(!pinned && (showSeconds || (displayOpen && perMinute > 1)));
   const [translationsOpen, setTranslationsOpen] = useState(false);
@@ -151,7 +169,14 @@ export default function App() {
           seconds={showSeconds && !pinned ? now.getSeconds() : null}
           tick={pinned ? null : now.getSeconds()}
           live={!pinned} onClose={() => setDisplayOpen(false)} />}
-      <Toaster position="bottom-center" richColors closeButton />
+      <Toaster
+        position="bottom-center"
+        richColors
+        closeButton
+        theme={night ? "dark" : theme}
+        // In the app's own colors (and the night display's, dim and warm), not Sonner's
+        style={(night ? NIGHT_TOASTS : TOASTS) as CSSProperties}
+      />
     </TooltipProvider>
   );
 }

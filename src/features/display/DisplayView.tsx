@@ -14,7 +14,7 @@ import {
   UndoIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { candidatesFor, pinsAt } from "@/clock/choose";
+import { candidatesFor, nextPinnedTime, pinnedTimeFor, pinsAt } from "@/clock/choose";
 import { addMinutes, formatTime, PER_MINUTE, shownHour, slotLength, slotOf, timeLabels, type ClockTime, type HourFormat } from "@/clock/times";
 import { Reference } from "@/components/Reference";
 import { CustomizeDialog, type CustomizeTab } from "@/features/customize/CustomizeDialog";
@@ -91,8 +91,11 @@ function Verses({
   className,
   textClassName,
   referenceClassName,
+  empty,
 }: {
   picked: Picked;
+  /** What to say when there's no verse, in place of "No verse at 5:00" */
+  empty?: string;
   stale: boolean;
   time: ClockTime;
   format: HourFormat;
@@ -128,7 +131,7 @@ function Verses({
   } else if (picked.status === "error") {
     body = <p className={cn("opacity-60", textClassName)}>Couldn't download the verse. Are you offline?</p>;
   } else {
-    body = <p className={cn("opacity-60", textClassName)}>No verse at {formatTime(time, format)} in {abbreviation}.</p>;
+    body = <p className={cn("opacity-60", textClassName)}>{empty ?? `No verse at ${formatTime(time, format)} in ${abbreviation}.`}</p>;
   }
 
   return (
@@ -197,6 +200,7 @@ export function DisplayView({
   const count = useApp((s) => s.settings.displayCount);
   const showSeconds = useApp((s) => s.settings.showSeconds);
   const perMinute = useApp((s) => s.settings.perMinute);
+  const onlyPinned = useApp((s) => s.settings.onlyPinned);
   const update = useApp((s) => s.updateSettings);
   const landscape = useLandscape();
   const fullscreen = useFullscreen();
@@ -214,11 +218,22 @@ export function DisplayView({
 
   // Everything that changes what's picked; the same key keeps the same pick. Not the translation:
   // changing it shows the same verses in the other one
-  const choices = `${format}|${others}|${JSON.stringify(priorities)}|${pins.map((p) => p.id).join(",")}`;
+  const choices = `${format}|${others}|${onlyPinned}|${JSON.stringify(priorities)}|${pins.map((p) => p.id).join(",")}`;
   const seedFor = (t: ClockTime) => `${SALT}|${choices}|${t.hour}:${t.minute}`;
-  const key = seedFor(time);
+  /**
+   * The time whose verses show: now, or with only pinned verses, the last time pinned (so a pinned
+   * verse stays until the next one's time); `null` with nothing pinned
+   */
+  const sourceFor = (t: ClockTime) => (onlyPinned ? pinnedTimeFor(t, format, pins) : t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const candidates = useMemo(() => candidatesFor(time, format, { others, priorities, pins }, key), [key]);
+  const source = useMemo(() => sourceFor(time), [choices, time.hour, time.minute]);
+  const key = seedFor(source ?? time);
+  const options = { others, priorities, pins, onlyPinned };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const candidates = useMemo(() => (source ? candidatesFor(source, format, options, key) : []), [key]);
+  /** With only pinned verses, when the next ones come, for the bar */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const nextPinned = useMemo(() => (onlyPinned ? nextPinnedTime(time, format, pins) : null), [choices, time.hour, time.minute]);
   const { picked, stale, next, more } = useRandomVerse(translation, candidates, key, count);
 
   // Several times a minute, on to the next verses as each part of the minute starts (2 a minute:
@@ -307,15 +322,17 @@ export function DisplayView({
   // The next minute's verse, downloaded before it comes
   useEffect(() => {
     if (!live || picked.status === "loading") return;
-    const soon = addMinutes(time, 1);
-    prefetchFirst(translation, candidatesFor(soon, format, { others, priorities, pins }, seedFor(soon)), count);
+    const soon = sourceFor(addMinutes(time, 1));
+    if (!soon || (source && soon.hour === source.hour && soon.minute === source.minute)) return;
+    prefetchFirst(translation, candidatesFor(soon, format, options, seedFor(soon)), count);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live, key, count, picked.status, translation.id]);
 
   // Pins the verse showing to the time it shows at (both 4:12s on a 12-hour clock), or unpins it;
   // with several showing, they're pinned from the list or the pins dialog instead
   const only = shown.picked.status === "verse" && shown.picked.items.length === 1 ? shown.picked.items[0]! : null;
-  const pinTime = shown.time;
+  // With only pinned verses, the one showing is pinned at its own time, not now's
+  const pinTime = viewing || !source ? shown.time : source;
   const pinLabel = `${shownHour(pinTime, format)}:${String(pinTime.minute).padStart(2, "0")}`;
   const pinnedHere = only ? pinsAt(pins, pinTime, format).filter((p) => p.reference === only.candidate.reference) : [];
   const togglePin = () => {
@@ -386,7 +403,8 @@ export function DisplayView({
     }
   };
 
-  const verseProps = { picked: shown.picked, stale: shown.stale, time: shown.time, format, abbreviation: shown.abbreviation };
+  const empty = onlyPinned && !source && !viewing ? "Nothing is pinned yet. Pin verses to times, or turn off Only pinned verses in Settings." : undefined;
+  const verseProps = { picked: shown.picked, stale: shown.stale, time: shown.time, format, abbreviation: shown.abbreviation, empty };
   const nightText = "text-[#c98a5a]";
 
   let content: ReactNode;
@@ -442,6 +460,12 @@ export function DisplayView({
       ? { long: `Verses ${first}–${last} of ${picked.of}`, short: `${first}–${last}/${picked.of}` }
       : { long: `${picked.items.length} of ${picked.of} verses`, short: `${picked.items.length}/${picked.of}` };
   })();
+  /** With only pinned verses: "pinned for 9:30, next at 4:12" */
+  const pinnedFor = (() => {
+    if (!onlyPinned || !source) return null;
+    const from = source.hour === time.hour && source.minute === time.minute ? "pinned now" : `pinned for ${formatTime(source, format)}`;
+    return nextPinned ? `${from}, next at ${formatTime(nextPinned, format)}` : from;
+  })();
   const bar = cn("transition-opacity duration-500", idle.active ? "opacity-100" : "pointer-events-none opacity-0");
   const barButton = night ? "text-[#c98a5a] hover:bg-white/5 hover:text-[#e0a070]" : "";
 
@@ -484,6 +508,7 @@ export function DisplayView({
                 </span>
               )}
               {position && !live && <span className="hidden sm:inline"> · {formatTime(time, format)}</span>}
+              {position && pinnedFor && <span className="hidden sm:inline"> · {pinnedFor}</span>}
             </>
           )}
         </div>

@@ -23,6 +23,8 @@ export interface Settings {
   displayCount: number;
   /** How many times a minute the display moves on to new verses (each lasting 60 ÷ this seconds) */
   perMinute: number;
+  /** The display shows only pinned verses; between their times, the last one stays */
+  onlyPinned: boolean;
   /** What opens: one verse at a time, or every verse at the time */
   view: "display" | "list";
 }
@@ -72,6 +74,7 @@ export const useApp = create<State>()(
         displayLayout: "auto",
         displayCount: 1,
         perMinute: 1,
+        onlyPinned: false,
         view: "display",
       },
       priorities: {},

@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadTopos } from "@/bible/topos";
-import { candidatesFor, pinMatches, type Pin } from "@/clock/choose";
+import { candidatesFor, nextPinnedTime, pinMatches, pinnedTimeFor, type Pin } from "@/clock/choose";
 import { weightedShuffled } from "@/clock/random";
 
 beforeAll(loadTopos);
@@ -51,5 +51,31 @@ describe("priorities", () => {
     let heavy = 0;
     for (let seed = 0; seed < 500; seed++) if (weightedShuffled(["a", "b"], (x) => (x === "a" ? 9 : 1), seed)[0] === "a") heavy++;
     expect(heavy / 500).toBeGreaterThan(0.8);
+  });
+});
+
+describe("only pinned verses", () => {
+  const pins = [pin(4, 12, "Hebrews 4:12"), pin(9, 30, "Psalm 23:1"), pin(9, 30, "John 3:16")];
+
+  it("shows only the pins at the time", () => {
+    const list = candidatesFor(at(9, 30), "12h", { ...none, pins, onlyPinned: true }, "seed");
+    expect(list.map((c) => c.reference).sort()).toEqual(["John 3:16", "Psalm 23:1"]);
+    expect(list.every((c) => c.pinned)).toBe(true);
+  });
+
+  it("stays with the last pinned time until the next", () => {
+    expect(pinnedTimeFor(at(9, 30), "24h", pins)).toEqual(at(9, 30));
+    expect(pinnedTimeFor(at(11, 0), "24h", pins)).toEqual(at(9, 30));
+    expect(nextPinnedTime(at(11, 0), "24h", pins)).toEqual(at(4, 12));
+  });
+
+  it("starts from the last pin before now, back into yesterday", () => {
+    expect(pinnedTimeFor(at(2, 0), "24h", pins)).toEqual(at(9, 30));
+    expect(pinnedTimeFor(at(2, 0), "24h", [pin(23, 59, "Jude 9")])).toEqual(at(23, 59));
+  });
+
+  it("has nothing to show with nothing pinned, or pins that aren't verses", () => {
+    expect(pinnedTimeFor(at(9, 30), "12h", [])).toBeNull();
+    expect(pinnedTimeFor(at(9, 30), "12h", [pin(9, 30, "not a verse")])).toBeNull();
   });
 });

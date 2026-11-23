@@ -70,6 +70,9 @@ export function SettingsDialog() {
             }))}
           />
         </div>
+        <Row title="Only pinned verses" description="The one-verse display shows only verses you've pinned. Between their times, the last one stays.">
+          <Switch checked={settings.onlyPinned} onCheckedChange={(onlyPinned) => update({ onlyPinned })} />
+        </Row>
         <Row title="Verses at once" description="How many verses the one-verse display shows each minute">
           <Stepper label="Verses at once" value={settings.displayCount} min={1} max={MAX_AT_ONCE} onChange={(displayCount) => update({ displayCount })} />
         </Row>

@@ -1,7 +1,7 @@
 import { formatRef, passageVerses } from "@/bible/topos";
 import { verseKey, type VerseRef } from "@/bible/types";
 import { hashString, shuffled, weightedShuffled } from "./random";
-import { shownHour, versesForTime, type ClockTime, type HourFormat } from "./times";
+import { addMinutes, shownHour, versesForTime, type ClockTime, type HourFormat } from "./times";
 
 /** How often a book's verses are picked: never, less, normal, more, most */
 export type Priority = 0 | 1 | 2 | 3 | 4;
@@ -56,6 +56,31 @@ export interface Candidate {
 export const pinsAt = (pins: Pin[], t: ClockTime, format: HourFormat) => pins.filter((p) => pinMatches(p, t, format));
 
 /**
+ * With only pinned verses shown, the time whose pins show now: this minute's, or else the last
+ * time before it with a pin (as if the clock had been showing it since); `null` with nothing
+ * pinned. A day back from now is the same minute, so it's always found when anything is pinned.
+ */
+export function pinnedTimeFor(t: ClockTime, format: HourFormat, pins: Pin[]): ClockTime | null {
+  const valid = pins.filter((p) => passageVerses(p.reference)?.length);
+  if (!valid.length) return null;
+  for (let i = 0; i < 1440; i++) {
+    const at = addMinutes(t, -i);
+    if (pinsAt(valid, at, format).length) return at;
+  }
+  return null;
+}
+
+/** The pin after this time, for "next at 4:12" */
+export function nextPinnedTime(t: ClockTime, format: HourFormat, pins: Pin[]): ClockTime | null {
+  const valid = pins.filter((p) => passageVerses(p.reference)?.length);
+  for (let i = 1; i <= 1440; i++) {
+    const at = addMinutes(t, i);
+    if (pinsAt(valid, at, format).length) return at;
+  }
+  return null;
+}
+
+/**
  * What the display goes through at a time, in order: the pinned verses first (in random order,
  * so several at one time take turns), then the time's verses, shuffled by book priority (books
  * set to Never left out). The order is fixed by `seed`.
@@ -63,7 +88,7 @@ export const pinsAt = (pins: Pin[], t: ClockTime, format: HourFormat) => pins.fi
 export function candidatesFor(
   t: ClockTime,
   format: HourFormat,
-  options: { others: boolean; priorities: Priorities; pins: Pin[] },
+  options: { others: boolean; priorities: Priorities; pins: Pin[]; onlyPinned?: boolean },
   seed: string,
 ): Candidate[] {
   const pinned: Candidate[] = [];
@@ -74,6 +99,7 @@ export function candidatesFor(
     pinned.push({ id: `pin:${pin.id}`, verses, reference: pin.reference, pinned: true });
     if (verses.length === 1) pinnedVerses.add(verseKey(verses[0]!));
   }
+  if (options.onlyPinned) return shuffled(pinned, hashString(`${seed}|pins`));
   const atTime = versesForTime(t, format, options.others)
     .flatMap((g) => g.verses)
     .filter((v) => !pinnedVerses.has(verseKey(v)));

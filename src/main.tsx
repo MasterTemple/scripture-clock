@@ -1,0 +1,25 @@
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { loadTopos } from "@/bible/topos";
+import { registerOffline } from "@/lib/pwa";
+import App from "./App";
+import "./index.css";
+
+const root = createRoot(document.getElementById("root")!);
+registerOffline();
+
+loadTopos().then(
+  () =>
+    root.render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    ),
+  (error: unknown) =>
+    root.render(
+      <div style={{ padding: 32, fontFamily: "system-ui" }}>
+        <h1>Scripture Clock couldn't start</h1>
+        <p>Its Bible data failed to load: {String(error)}</p>
+      </div>,
+    ),
+);

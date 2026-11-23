@@ -73,7 +73,7 @@ export const useApp = create<State>()(
         otherReadings: true,
         ignoreZeros: false,
         showSeconds: false,
-        keepAwake: false,
+        keepAwake: true,
         theme: "system",
         displayLayout: "auto",
         displayCount: 1,
